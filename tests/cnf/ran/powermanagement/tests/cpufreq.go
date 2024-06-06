@@ -12,7 +12,6 @@ import (
 	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/powermanagement/internal/helper"
 	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/powermanagement/internal/tsparams"
 	performancev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -62,8 +61,8 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			consoleOut, err := cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
 			Expect(err).ToNot(HaveOccurred(), "Failed to %s", spokeCommand)
 			freqAsInt, err := strconv.Atoi(strings.Trim(consoleOut, "\r\n"))
+			Expect(err).ToNot(HaveOccurred(), "strconv.Atoi Failed")
 			originalIsolatedCPUFreq = performancev2.CPUfrequency(freqAsInt)
-			log.Println("ORIGINAL: %v", freqAsInt) //DEBUG
 
 			By("get original reserved core frequency")
 			spokeCommand = fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq |cat -",
@@ -71,6 +70,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			consoleOut, err = cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
 			Expect(err).ToNot(HaveOccurred(), "Failed to %s", spokeCommand)
 			freqAsInt, err = strconv.Atoi(strings.Trim(consoleOut, "\r\n"))
+			Expect(err).ToNot(HaveOccurred(), "strconv.Atoi Failed")
 			originalReservedCPUFreq = performancev2.CPUfrequency(freqAsInt)
 
 			By("patch performance profile to set core frequencies")
@@ -83,7 +83,6 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 				isolatedCPUNumber)
 			consoleOut, err = cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
 			Expect(err).ToNot(HaveOccurred(), "Failed to %s", spokeCommand)
-			log.Println("NEW: %v", consoleOut) //DEBUG
 
 			By("Compare current isolated core freq to desired isolated core freq")
 			currIsolatedCoreFreq, err := strconv.Atoi(strings.Trim(consoleOut, "\r\n "))

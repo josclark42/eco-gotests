@@ -93,7 +93,7 @@ func SetCPUFreqAndWaitForMcpUpdate(
 		return err
 	}
 
-	//work-around
+	// work-around
 	time.Sleep(5 * time.Second)
 
 	return err
