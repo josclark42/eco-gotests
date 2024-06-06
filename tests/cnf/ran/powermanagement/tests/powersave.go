@@ -249,9 +249,10 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			ReservedCPUNumber       = 0
 		)
 
-		It("sets frequency of reserved and isolated CPU cores", Label("ReservedCoreFreqTuningTest"), func() { //REMOVE LABEL- for testing only
+		It("sets frequency of reserved and isolated CPU cores", func() {
 			By("patch performance profile to set core frequency to coreFrequency")
-			err := helper.SetCPUFreqAndWaitForMcpUpdate(perfProfile, *nodeList[0], &desiredIsolatedCoreFreq, &desiredReservedCoreFreq)
+			err := helper.SetCPUFreqAndWaitForMcpUpdate(perfProfile, *nodeList[0],
+				&desiredIsolatedCoreFreq, &desiredReservedCoreFreq)
 			Expect(err).ToNot(HaveOccurred(), "Failed to set CPU Freq")
 
 			By("Get modified isolated core frequency")
@@ -262,7 +263,8 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			By("Compare current isolated core freq to desired isolated core freq")
 			currIsolatedCoreFreq, err := strconv.Atoi(strings.TrimSuffix(consoleOut, "\n"))
 			Expect(err).ToNot(HaveOccurred(), "strconv.ParseInt Failed")
-			Expect(currIsolatedCoreFreq).Should(Equal(int(desiredIsolatedCoreFreq)), "Isolated CPU Frequency does not match expected frequency")
+			Expect(currIsolatedCoreFreq).Should(Equal(int(desiredIsolatedCoreFreq)),
+				"Isolated CPU Frequency does not match expected frequency")
 
 			By("Get current reserved core frequency")
 			spokeCommand = fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq", ReservedCPUNumber)
@@ -272,7 +274,8 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			By("Compare current reserved core freq to desired reserved core freq")
 			currReservedCoreFreq, err := strconv.Atoi(strings.TrimSuffix(consoleOut, "\n"))
 			Expect(err).ToNot(HaveOccurred(), "strconv.ParseInt Failed")
-			Expect(currReservedCoreFreq).Should(Equal(int(desiredReservedCoreFreq)), "Reserved CPU Frequency does not match expected frequency")
+			Expect(currReservedCoreFreq).Should(Equal(int(desiredReservedCoreFreq)),
+				"Reserved CPU Frequency does not match expected frequency")
 
 		})
 	})
