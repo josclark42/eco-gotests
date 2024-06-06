@@ -2,8 +2,10 @@ package tests
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -237,6 +239,53 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			for metricName, metricValue := range compMap {
 				GinkgoWriter.Printf("%s: %s\n", metricName, metricValue)
 			}
+		})
+	})
+
+	Context("Reserved Core Frequency Tuning Test", func() {
+		var (
+			//desiredReservedCoreFreq = 2500001
+			desiredReservedCoreFreq = performancev2.CPUfrequency(2500001)
+			//desiredIsolatedCoreFreq = 2200001
+			desiredIsolatedCoreFreq = performancev2.CPUfrequency(2200001)
+
+			isolatedCPUNumber = 1
+			ReservedCPUNumber = 0
+		)
+		BeforeAll(func() {
+		})
+
+		It("sets frequency of reserved CPU cores", func() {
+			By("patch performance profile to set core frequency to coreFrequency")
+
+			//
+			err := helper.SetCPUFreqAndWaitForMcpUpdate(perfProfile, *nodeList[0], &desiredIsolatedCoreFreq, &desiredReservedCoreFreq)
+			Expect(err).ToNot(HaveOccurred(), "Failed to set CPU Freq")
+
+			By("Get modified isolated core frequency")
+			spokeCommand := fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%s/scaling_max_freq", isolatedCPUNumber)
+			consoleOut, err := cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
+			Expect(err).ToNot(HaveOccurred(), "Failed to cat /sys/devices/system/cpu/cpufreq/policy%s/scaling_max_freq")
+
+			// Debug
+			log.Printf("isolated core frequency console out: %s\n", string(consoleOut))
+
+			By("Compare current isoloated core freq to desired Isolated Core Freq")
+			currIsolatedCoreFreq, _ := strconv.Atoi(consoleOut)
+			Expect(currIsolatedCoreFreq).Should(Equal(desiredIsolatedCoreFreq), "Isolated CPU Frequency does not matched expected frequency")
+
+			By("Get current reserved core frequency")
+			spokeCommand = fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%s/scaling_max_freq", ReservedCPUNumber)
+			consoleOut, err = cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
+			Expect(err).ToNot(HaveOccurred(), "Failed to cat /sys/devices/system/cpu/cpufreq/policy%s/scaling_max_freq")
+
+			// Debug
+			log.Printf("reserved core frequency console out: %s\n", string(consoleOut))
+
+			By("Compare current reserved core freq to desired reserved core freq")
+			currReservedCoreFreq, _ := strconv.Atoi(consoleOut)
+			Expect(currReservedCoreFreq).Should(Equal(desiredReservedCoreFreq), "Reserved CPU Frequency does not matched expected frequency")
+
 		})
 	})
 })

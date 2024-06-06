@@ -77,6 +77,41 @@ func SetPowerModeAndWaitForMcpUpdate(perfProfile *nto.Builder, node nodes.Builde
 	return err
 }
 
+// SetCPUScalingMaxFreqAndWaitForMcpUpdate updates the performance profile with the given isolated and reserved
+// core frequencies and waits for the mcp update.
+func SetCPUFreqAndWaitForMcpUpdate(perfProfile *nto.Builder, node nodes.Builder, isolatedCpuFreq *performancev2.CPUfrequency,
+	reservedCpuFreq *performancev2.CPUfrequency) error {
+
+	glog.V(tsparams.LogLevel).Infof("Set Reserved and Isolated CPU Frequency on performance profile")
+
+	perfProfile.Definition.Spec.HardwareTuning.IsolatedCpuFreq = isolatedCpuFreq
+	perfProfile.Definition.Spec.HardwareTuning.ReservedCpuFreq = reservedCpuFreq
+
+	_, err := perfProfile.Update(true)
+	if err != nil {
+		return err
+	}
+
+	mcp, err := mco.Pull(raninittools.Spoke1APIClient, "master")
+	if err != nil {
+		return err
+	}
+
+	err = mcp.WaitToBeInCondition(mcov1.MachineConfigPoolUpdating, corev1.ConditionTrue, 2*tsparams.PowerSaveTimeout)
+	if err != nil {
+		return err
+	}
+
+	err = mcp.WaitForUpdate(3 * tsparams.PowerSaveTimeout)
+	if err != nil {
+		return err
+	}
+
+	err = node.WaitUntilReady(tsparams.PowerSaveTimeout)
+
+	return err
+}
+
 // DefineQoSTestPod defines test pod with given cpu and memory resources.
 func DefineQoSTestPod(namespace, nodeName, cpuReq, cpuLimit, memReq, memLimit string) (*pod.Builder, error) {
 	var err error
