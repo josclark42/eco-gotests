@@ -243,8 +243,8 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 
 	FContext("Reserved Core Frequency Tuning Test", func() {
 		var (
-			desiredReservedCoreFreq = performancev2.CPUfrequency(2500005)
-			desiredIsolatedCoreFreq = performancev2.CPUfrequency(2200005)
+			desiredReservedCoreFreq = performancev2.CPUfrequency(2500006)
+			desiredIsolatedCoreFreq = performancev2.CPUfrequency(2200006)
 			originalIsolatedCPUFreq performancev2.CPUfrequency
 			originalReservedCPUFreq performancev2.CPUfrequency
 			isolatedCPUNumber       = 2
@@ -269,7 +269,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 		})
 
 		It("sets frequency of reserved and isolated CPU cores", func() {
-			By("patch performance profile to set core frequency to coreFrequency")
+			By("patch performance profile to set core frequencies")
 			err := helper.SetCPUFreqAndWaitForMcpUpdate(perfProfile, *nodeList[0],
 				&desiredIsolatedCoreFreq, &desiredReservedCoreFreq)
 			Expect(err).ToNot(HaveOccurred(), "Failed to set CPU Freq")
@@ -300,7 +300,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 		})
 
 		It("Reverts the CPU frequencies to the original setting", func() {
-			By("patch performance profile to set core frequency to coreFrequency")
+			By("patch performance profile to set core frequencies")
 			err := helper.SetCPUFreqAndWaitForMcpUpdate(perfProfile, *nodeList[0],
 				&originalIsolatedCPUFreq, &originalReservedCPUFreq)
 			Expect(err).ToNot(HaveOccurred(), "Failed to set CPU Freq")
