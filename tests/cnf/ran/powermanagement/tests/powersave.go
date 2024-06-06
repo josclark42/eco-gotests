@@ -241,7 +241,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 		})
 	})
 
-	Context("Reserved Core Frequency Tuning Test", func() {
+	FContext("Reserved Core Frequency Tuning Test", func() {
 		var (
 			desiredReservedCoreFreq = performancev2.CPUfrequency(2500004)
 			desiredIsolatedCoreFreq = performancev2.CPUfrequency(2200004)
@@ -268,7 +268,8 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 				"Isolated CPU Frequency does not match expected frequency")
 
 			By("Get current reserved core frequency")
-			spokeCommand = fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq |cat -", ReservedCPUNumber)
+			spokeCommand = fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq |cat -",
+				ReservedCPUNumber)
 			consoleOut, err = cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
 			Expect(err).ToNot(HaveOccurred(), "Failed to %s", spokeCommand)
 

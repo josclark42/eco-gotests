@@ -79,7 +79,8 @@ func SetPowerModeAndWaitForMcpUpdate(perfProfile *nto.Builder, node nodes.Builde
 
 // SetCPUFreqAndWaitForMcpUpdate updates the performance profile with the given isolated and reserved
 // core frequencies and waits for the mcp update.
-func SetCPUFreqAndWaitForMcpUpdate(perfProfile *nto.Builder, node nodes.Builder,
+func SetCPUFreqAndWaitForMcpUpdate(
+	perfProfile *nto.Builder, node nodes.Builder,
 	isolatedCPUFreq *performancev2.CPUfrequency,
 	reservedCPUFreq *performancev2.CPUfrequency) error {
 	glog.V(tsparams.LogLevel).Infof("Set Reserved and Isolated CPU Frequency on performance profile")
@@ -92,8 +93,10 @@ func SetCPUFreqAndWaitForMcpUpdate(perfProfile *nto.Builder, node nodes.Builder,
 		return err
 	}
 
-	// Pause for new CPU setting to be applied to spoke. I don't like this. Is there a better way?
-	time.Sleep(5 * time.Second)
+	_, err = mco.Pull(raninittools.Spoke1APIClient, "master")
+	if err != nil {
+		return err
+	}
 
 	return err
 }
