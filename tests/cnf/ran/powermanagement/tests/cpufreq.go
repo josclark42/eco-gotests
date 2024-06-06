@@ -2,6 +2,9 @@ package tests
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
@@ -12,8 +15,6 @@ import (
 	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/powermanagement/internal/helper"
 	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/powermanagement/internal/tsparams"
 	performancev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
-	"strconv"
-	"strings"
 )
 
 var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPowerSaveTestCases), Ordered, func() {
