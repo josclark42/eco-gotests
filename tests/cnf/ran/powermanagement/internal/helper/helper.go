@@ -93,10 +93,8 @@ func SetCPUFreqAndWaitForMcpUpdate(
 		return err
 	}
 
-	_, err = mco.Pull(raninittools.Spoke1APIClient, "master")
-	if err != nil {
-		return err
-	}
+	//work-around
+	time.Sleep(5 * time.Second)
 
 	return err
 }

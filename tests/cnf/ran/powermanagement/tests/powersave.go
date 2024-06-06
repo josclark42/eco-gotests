@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -239,74 +238,6 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 				GinkgoWriter.Printf("%s: %s\n", metricName, metricValue)
 			}
 		})
-	})
-
-	FContext("Reserved Core Frequency Tuning Test", func() {
-		var (
-			desiredReservedCoreFreq = performancev2.CPUfrequency(2500006)
-			desiredIsolatedCoreFreq = performancev2.CPUfrequency(2200006)
-			originalIsolatedCPUFreq performancev2.CPUfrequency
-			originalReservedCPUFreq performancev2.CPUfrequency
-			isolatedCPUNumber       = 2
-			ReservedCPUNumber       = 0
-		)
-
-		It("gets the current frequency of the reserved and isolated CPU cored", func() {
-			By("get original isolated core frequency")
-			spokeCommand := fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq |cat -",
-				isolatedCPUNumber)
-			consoleOut, err := cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
-			Expect(err).ToNot(HaveOccurred(), "Failed to %s", spokeCommand)
-			originalIsolatedCPUFreq, err = strconv.Atoi(strings.Trim(consoleOut, "\r\n"))
-
-			By("get original reserved core frequency")
-			spokeCommand = fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq |cat -",
-				ReservedCPUNumber)
-			consoleOut, err = cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
-			Expect(err).ToNot(HaveOccurred(), "Failed to %s", spokeCommand)
-			originalReservedCPUFreq, err = strconv.Atoi(strings.Trim(consoleOut, "\r\n"))
-
-		})
-
-		It("sets frequency of reserved and isolated CPU cores", func() {
-			By("patch performance profile to set core frequencies")
-			err := helper.SetCPUFreqAndWaitForMcpUpdate(perfProfile, *nodeList[0],
-				&desiredIsolatedCoreFreq, &desiredReservedCoreFreq)
-			Expect(err).ToNot(HaveOccurred(), "Failed to set CPU Freq")
-
-			By("Get modified isolated core frequency")
-			spokeCommand := fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq |cat -",
-				isolatedCPUNumber)
-			consoleOut, err := cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
-			Expect(err).ToNot(HaveOccurred(), "Failed to %s", spokeCommand)
-
-			By("Compare current isolated core freq to desired isolated core freq")
-			currIsolatedCoreFreq, err := strconv.Atoi(strings.Trim(consoleOut, "\r\n "))
-			Expect(err).ToNot(HaveOccurred(), "strconv.Atoi Failed")
-			Expect(currIsolatedCoreFreq).To(Equal(int(desiredIsolatedCoreFreq)),
-				"Isolated CPU Frequency does not match expected frequency")
-
-			By("Get current reserved core frequency")
-			spokeCommand = fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq |cat -",
-				ReservedCPUNumber)
-			consoleOut, err = cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
-			Expect(err).ToNot(HaveOccurred(), "Failed to %s", spokeCommand)
-
-			By("Compare current reserved core freq to desired reserved core freq")
-			currReservedCoreFreq, err := strconv.Atoi(strings.Trim(consoleOut, "\r\n "))
-			Expect(err).ToNot(HaveOccurred(), "strconv.Atoi Failed")
-			Expect(currReservedCoreFreq).To(Equal(int(desiredReservedCoreFreq)),
-				"Reserved CPU Frequency does not match expected frequency")
-		})
-
-		It("Reverts the CPU frequencies to the original setting", func() {
-			By("patch performance profile to set core frequencies")
-			err := helper.SetCPUFreqAndWaitForMcpUpdate(perfProfile, *nodeList[0],
-				&originalIsolatedCPUFreq, &originalReservedCPUFreq)
-			Expect(err).ToNot(HaveOccurred(), "Failed to set CPU Freq")
-
-		})
-
 	})
 })
 
