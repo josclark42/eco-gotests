@@ -92,22 +92,8 @@ func SetCPUFreqAndWaitForMcpUpdate(perfProfile *nto.Builder, node nodes.Builder,
 		return err
 	}
 
-	mcp, err := mco.Pull(raninittools.Spoke1APIClient, "master")
-	if err != nil {
-		return err
-	}
-
-	err = mcp.WaitToBeInCondition(mcov1.MachineConfigPoolUpdating, corev1.ConditionTrue, 2*tsparams.PowerSaveTimeout)
-	if err != nil {
-		return err
-	}
-
-	err = mcp.WaitForUpdate(3 * tsparams.PowerSaveTimeout)
-	if err != nil {
-		return err
-	}
-
-	err = node.WaitUntilReady(tsparams.PowerSaveTimeout)
+	// Pause for new CPU setting to be applied to spoke. I don't like this. Is there a better way?
+	time.Sleep(5 * time.Second)
 
 	return err
 }
