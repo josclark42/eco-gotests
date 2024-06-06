@@ -256,25 +256,26 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			Expect(err).ToNot(HaveOccurred(), "Failed to set CPU Freq")
 
 			By("Get modified isolated core frequency")
-			spokeCommand := fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq", isolatedCPUNumber)
+			spokeCommand := fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq |cat -",
+				isolatedCPUNumber)
 			consoleOut, err := cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
-			Expect(err).ToNot(HaveOccurred(), "Failed to cat /sys/devices/system/cpu/cpufreq/policy%s/scaling_max_freq")
+			Expect(err).ToNot(HaveOccurred(), "Failed to %s", spokeCommand)
 
 			By("Compare current isolated core freq to desired isolated core freq")
-			currIsolatedCoreFreq, err := strconv.Atoi(strings.TrimSuffix(consoleOut, "\n"))
+			currIsolatedCoreFreq, err := strconv.Atoi(strings.Trim(consoleOut, "\r\n "))
 			Expect(err).ToNot(HaveOccurred(), "strconv.ParseInt Failed")
-			Expect(currIsolatedCoreFreq).Should(Equal(int(desiredIsolatedCoreFreq)),
+			Expect(currIsolatedCoreFreq).To(Equal(int(desiredIsolatedCoreFreq)),
 				"Isolated CPU Frequency does not match expected frequency")
 
 			By("Get current reserved core frequency")
-			spokeCommand = fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq", ReservedCPUNumber)
+			spokeCommand = fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq |cat -", ReservedCPUNumber)
 			consoleOut, err = cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
-			Expect(err).ToNot(HaveOccurred(), "Failed to cat /sys/devices/system/cpu/cpufreq/policy%s/scaling_max_freq")
+			Expect(err).ToNot(HaveOccurred(), "Failed to %s", spokeCommand)
 
 			By("Compare current reserved core freq to desired reserved core freq")
-			currReservedCoreFreq, err := strconv.Atoi(strings.TrimSuffix(consoleOut, "\n"))
+			currReservedCoreFreq, err := strconv.Atoi(strings.Trim(consoleOut, "\r\n "))
 			Expect(err).ToNot(HaveOccurred(), "strconv.ParseInt Failed")
-			Expect(currReservedCoreFreq).Should(Equal(int(desiredReservedCoreFreq)),
+			Expect(currReservedCoreFreq).To(Equal(int(desiredReservedCoreFreq)),
 				"Reserved CPU Frequency does not match expected frequency")
 
 		})
