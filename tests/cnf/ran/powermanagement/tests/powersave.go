@@ -248,8 +248,6 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			isolatedCPUNumber       = 2
 			ReservedCPUNumber       = 0
 		)
-		BeforeAll(func() {
-		})
 
 		It("sets frequency of reserved and isolated CPU cores", Label("ReservedCoreFreqTuningTest"), func() { //REMOVE LABEL- for testing only
 			By("patch performance profile to set core frequency to coreFrequency")
@@ -261,10 +259,10 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			consoleOut, err := cluster.ExecCommandOnSNO(raninittools.Spoke1APIClient, 3, spokeCommand)
 			Expect(err).ToNot(HaveOccurred(), "Failed to cat /sys/devices/system/cpu/cpufreq/policy%s/scaling_max_freq")
 
-			By("Compare current isoloated core freq to desired Isolated Core Freq")
+			By("Compare current isolated core freq to desired isolated core freq")
 			currIsolatedCoreFreq, err := strconv.Atoi(strings.TrimSuffix(consoleOut, "\n"))
 			Expect(err).ToNot(HaveOccurred(), "strconv.ParseInt Failed")
-			Expect(currIsolatedCoreFreq).Should(Equal(int(desiredIsolatedCoreFreq)), "Isolated CPU Frequency does not matched expected frequency")
+			Expect(currIsolatedCoreFreq).Should(Equal(int(desiredIsolatedCoreFreq)), "Isolated CPU Frequency does not match expected frequency")
 
 			By("Get current reserved core frequency")
 			spokeCommand = fmt.Sprintf("cat /sys/devices/system/cpu/cpufreq/policy%v/scaling_max_freq", ReservedCPUNumber)
@@ -274,7 +272,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			By("Compare current reserved core freq to desired reserved core freq")
 			currReservedCoreFreq, err := strconv.Atoi(strings.TrimSuffix(consoleOut, "\n"))
 			Expect(err).ToNot(HaveOccurred(), "strconv.ParseInt Failed")
-			Expect(currReservedCoreFreq).Should(Equal(int(desiredReservedCoreFreq)), "Reserved CPU Frequency does not matched expected frequency")
+			Expect(currReservedCoreFreq).Should(Equal(int(desiredReservedCoreFreq)), "Reserved CPU Frequency does not match expected frequency")
 
 		})
 	})
