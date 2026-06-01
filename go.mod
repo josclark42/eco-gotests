@@ -172,6 +172,8 @@ require (
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/imdario/mergo v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/itchyny/gojq v0.12.17 // indirect
+	github.com/itchyny/timefmt-go v0.1.6 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
@@ -206,9 +208,11 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/opencontainers/runtime-spec v1.2.1 // indirect
+	github.com/openshift/assisted-service/models v0.0.0 // indirect
 	github.com/openshift/cluster-logging-operator/api/observability v0.0.0-20250422180113-5bae4ccfc5ef // indirect
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 // indirect
 	github.com/openshift/elasticsearch-operator v0.0.0-20241202223819-cc1a232913d6 // indirect
+	github.com/openshift/hive/apis v0.0.0-20250725035156-a29a23859060 // indirect
 	github.com/openshift/library-go v0.0.0-20251120164824-14a789e09884 // indirect
 	github.com/openshift/machine-config-operator v0.0.1-0.20250320230514-53e78f3692ee // indirect
 	github.com/otiai10/copy v1.14.0 // indirect
@@ -292,6 +296,7 @@ require (
 )
 
 require (
+	github.com/openshift/assisted-service/api v0.0.0
 	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260528203259-157e696c35c2
 	k8s.io/apiextensions-apiserver v0.34.5
 )
@@ -313,3 +318,5 @@ replace (
 	sigs.k8s.io/cluster-api-provider-azure => github.com/mboersma/cluster-api-provider-azure v0.3.1-0.20251030205607-3161b9cc8d3e
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.19.7
 )
+
+replace github.com/rh-ecosystem-edge/eco-goinfra => github.com/josclark42/eco-goinfra v0.0.0-20260601205042-0f8e120f14a8
