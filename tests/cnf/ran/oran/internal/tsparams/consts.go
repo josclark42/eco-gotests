@@ -92,9 +92,12 @@ const (
 )
 
 const (
-	// SubscriberSubdomain is the subdomain for the subscriber deployment. It is expected that there exists a *.apps
-	// route for this subdomain.
-	SubscriberSubdomain = "oran-subscriber"
+	// SMOSubdomain is the apps subdomain of the Service Management and Orchestration (SMO) endpoint configured in the
+	// Inventory CR. O2IMS requires alarm subscription callback URLs to use this host.
+	SMOSubdomain = "smo"
+	// SubscriberIngressPath is the path prefix on the SMO host where the test subscriber is exposed via Route. It must
+	// not overlap with other services on the SMO host, such as the mock SMO observer.
+	SubscriberIngressPath = "/oran-subscriber"
 	// SubscriberNamespace is the namespace for the subscriber deployment.
 	SubscriberNamespace = "oran-subscriber"
 )

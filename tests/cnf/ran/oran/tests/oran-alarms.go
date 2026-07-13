@@ -25,8 +25,8 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-// subscriberURL is the URL of the subscriber, including the scheme. It should not be modified.
-var subscriberURL = "https://" + RANConfig.GetAppsURL(tsparams.SubscriberSubdomain)
+// subscriberURL is the base callback URL of the subscriber on the SMO host, including the scheme and path prefix.
+var subscriberURL = "https://" + RANConfig.GetAppsURL(tsparams.SMOSubdomain) + tsparams.SubscriberIngressPath
 
 var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparams.LabelAlarms), func() {
 	var (

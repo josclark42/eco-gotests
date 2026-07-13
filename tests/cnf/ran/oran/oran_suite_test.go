@@ -36,8 +36,8 @@ var _ = BeforeSuite(func() {
 
 	By("deploying the subscriber for alarm notifications")
 
-	subscriberDomain := RANConfig.GetAppsURL(tsparams.SubscriberSubdomain)
-	err := subscriber.Deploy(HubAPIClient, tsparams.SubscriberNamespace, subscriberDomain, "")
+	subscriberDomain := RANConfig.GetAppsURL(tsparams.SMOSubdomain)
+	err := subscriber.Deploy(HubAPIClient, tsparams.SubscriberNamespace, subscriberDomain, "", tsparams.SubscriberIngressPath)
 	Expect(err).ToNot(HaveOccurred(), "Failed to deploy subscriber")
 })
 

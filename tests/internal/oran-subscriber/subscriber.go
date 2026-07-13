@@ -4,25 +4,28 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"slices"
+	"strings"
 	"time"
 
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ingress"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/route"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 )
 
 // DefaultSubscriberImage is the default image for the subscriber. It is guaranteed to work in a connected deployment.
@@ -38,18 +41,24 @@ var SubscriberLabelSelector = map[string]string{"app": "subscriber"}
 // LogLevel is the default glog verbosity level for this package.
 const LogLevel klog.Level = 90
 
-// Deploy deploys the oran-subscriber. It creates all resources in the provided namespace and sets the host on the
-// ingress to the provided domain. If the subscriber image is not provided, [DefaultSubscriberImage] will be used.
+// Deploy deploys the oran-subscriber. It creates all resources in the provided namespace and exposes the subscriber
+// with an edge-terminated Route on subscriberDomain. If routePath is empty, "/" is used. When routePath is not "/",
+// the route rewrites matched path prefixes to "/" so the subscriber receives the trailing path segment. If the
+// subscriber image is not provided, [DefaultSubscriberImage] will be used.
 //
-// Note that the route created from the ingress will use edge TLS termination. Any applications wishing to have a secure
-// connection with the route must use the cluster's trusted CA bundle.
-func Deploy(client *clients.Settings, nsname string, subscriberDomain string, subscriberImage string) error {
+// Deploy waits until a GET to the subscriber URL returns HTTP 204, matching the O2IMS callback reachability check.
+func Deploy(client *clients.Settings, nsname string, subscriberDomain string,
+	subscriberImage string, routePath string) error {
 	if subscriberImage == "" {
 		subscriberImage = DefaultSubscriberImage
 	}
 
-	klog.V(LogLevel).Infof("Deploying subscriber in namespace %q with domain %q and image %q",
-		nsname, subscriberDomain, subscriberImage)
+	if routePath == "" {
+		routePath = "/"
+	}
+
+	klog.V(LogLevel).Infof("Deploying subscriber in namespace %q with domain %q, path %q, and image %q",
+		nsname, subscriberDomain, routePath, subscriberImage)
 
 	_, err := namespace.NewBuilder(client, nsname).Create()
 	if err != nil {
@@ -85,45 +94,96 @@ func Deploy(client *clients.Settings, nsname string, subscriberDomain string, su
 
 	klog.V(LogLevel).Info("Successfully created service for subscriber")
 
-	ingressBuilder := ingress.NewIngressBuilder(client, "subscriber-ingress", nsname)
-	if ingressBuilder == nil {
-		return fmt.Errorf("failed to create ingress builder")
+	routeBuilder := route.NewBuilder(client, "subscriber", nsname, "subscriber").
+		WithHostDomain(subscriberDomain).
+		WithTargetPortNumber(SubscriberServerPort)
+	if routeBuilder.GetError() != nil {
+		return fmt.Errorf("failed to create route builder: %w", routeBuilder.GetError())
 	}
 
-	ingressBuilder.Definition.Spec.Rules = []networkingv1.IngressRule{{
-		Host: subscriberDomain,
-		IngressRuleValue: networkingv1.IngressRuleValue{
-			HTTP: &networkingv1.HTTPIngressRuleValue{
-				Paths: []networkingv1.HTTPIngressPath{{
-					Path:     "/",
-					PathType: ptr.To(networkingv1.PathTypePrefix),
-					Backend: networkingv1.IngressBackend{
-						Service: &networkingv1.IngressServiceBackend{
-							Name: "subscriber",
-							Port: networkingv1.ServiceBackendPort{Number: SubscriberServerPort},
-						},
-					},
-				}},
-			},
-		},
-	}}
+	routeBuilder.Definition.Spec.Path = routePath
+	routeBuilder.Definition.Spec.TLS = &routev1.TLSConfig{
+		Termination:                   routev1.TLSTerminationEdge,
+		InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+	}
 
-	// An empty TLS object like this will cause the generated route to use edge TLS termination.
-	ingressBuilder.Definition.Spec.TLS = []networkingv1.IngressTLS{{}}
+	// Strip the shared host path prefix so the subscriber sees /<uuid> rather than /oran-subscriber/<uuid>.
+	if routePath != "/" {
+		if routeBuilder.Definition.Annotations == nil {
+			routeBuilder.Definition.Annotations = map[string]string{}
+		}
 
-	_, err = ingressBuilder.Create()
+		routeBuilder.Definition.Annotations["haproxy.router.openshift.io/rewrite-target"] = "/"
+	}
+
+	_, err = routeBuilder.Create()
 	if err != nil {
-		return fmt.Errorf("failed to create ingress: %w", err)
+		return fmt.Errorf("failed to create route: %w", err)
 	}
 
-	klog.V(LogLevel).Info("Successfully created ingress for subscriber")
+	klog.V(LogLevel).Info("Successfully created route for subscriber")
+
+	callbackBaseURL := "https://" + subscriberDomain + strings.TrimSuffix(routePath, "/")
+	if err := waitForCallbackReachable(callbackBaseURL, 2*time.Minute); err != nil {
+		return fmt.Errorf("failed waiting for subscriber callback to become reachable: %w", err)
+	}
+
+	klog.V(LogLevel).Infof("Subscriber callback is reachable at %s", callbackBaseURL)
 
 	return nil
 }
 
-// Cleanup cleans up the subscriber. It deletes the ingress, service, and deployment, and then the namespace. This
-// function is idempotent, so it will not fail if the resources do not exist.
+// waitForCallbackReachable polls until a GET of probeURL returns HTTP 204 No Content. This mirrors the O2IMS
+// subscription callback reachability check.
+func waitForCallbackReachable(callbackBaseURL string, timeout time.Duration) error {
+	probeURL := strings.TrimRight(callbackBaseURL, "/") + "/healthz"
+	httpClient := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true}, //nolint:gosec
+		},
+	}
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, probeURL, nil)
+			if err != nil {
+				return false, fmt.Errorf("failed to create probe request: %w", err)
+			}
+
+			resp, err := httpClient.Do(req)
+			if err != nil {
+				klog.V(LogLevel).Infof("Subscriber reachability probe failed: %v", err)
+
+				return false, nil
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusNoContent {
+				klog.V(LogLevel).Infof("Subscriber reachability probe returned status %d, want %d",
+					resp.StatusCode, http.StatusNoContent)
+
+				return false, nil
+			}
+
+			return true, nil
+		})
+}
+
+// Cleanup cleans up the subscriber. It deletes the route, legacy ingress, service, and deployment, and then the
+// namespace. This function is idempotent, so it will not fail if the resources do not exist.
 func Cleanup(client *clients.Settings, nsname string) error {
+	routeBuilder, err := route.Pull(client, "subscriber", nsname)
+	if err == nil {
+		_, err = routeBuilder.Delete()
+		if err != nil {
+			return fmt.Errorf("failed to delete route: %w", err)
+		}
+	}
+
+	klog.V(LogLevel).Info("Successfully cleaned up route for subscriber")
+
+	// Clean up legacy Ingress resources from older deployments.
 	ingressBuilder, err := ingress.PullIngress(client, "subscriber-ingress", nsname)
 	if err == nil {
 		err = ingressBuilder.Delete()
