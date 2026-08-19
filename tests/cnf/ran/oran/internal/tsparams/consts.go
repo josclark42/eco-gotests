@@ -33,6 +33,14 @@ const (
 	ClusterInstanceParamsKey = "clusterInstanceParameters"
 	// PolicyTemplateParamsKey is the key in the TemplateParameters map for the policy template parameters.
 	PolicyTemplateParamsKey = "policyTemplateParameters"
+	// UpgradeTemplateParamsKey is the key in the TemplateParameters map for upgrade parameters.
+	UpgradeTemplateParamsKey = "upgradeParameters"
+	// UpgradeClusterVersionKey is the key in upgrade parameters for ClusterVersion settings.
+	UpgradeClusterVersionKey = "clusterVersion"
+	// UpgradeDesiredUpdateKey is the key in upgrade clusterVersion settings for desiredUpdate.
+	UpgradeDesiredUpdateKey = "desiredUpdate"
+	// UpgradeDesiredVersionKey is the key in desiredUpdate for target version.
+	UpgradeDesiredVersionKey = "version"
 	// HugePagesSizeKey is the key in TemplateParameters.policyTemplateParameters that sets the hugepages size.
 	HugePagesSizeKey = "hugepages-size"
 	// OCloudSiteID is the name of the site in the hardware manager to provision in.
@@ -59,6 +67,12 @@ const (
 	// PRMissingBootInterfaceDetailsSubstring is a substring of provisioningDetails when no NIC in the
 	// ClusterInstance defaults matches the boot interface label value.
 	PRMissingBootInterfaceDetailsSubstring = "no NIC found matching boot interface label value"
+	// PRUpgradeCompletedDetailsSubstring is a substring of provisioningDetails when upgrade completes successfully.
+	PRUpgradeCompletedDetailsSubstring = "Upgrade to version"
+	// PRUpgradeInProgressDetailsSubstring is a substring of provisioningDetails when upgrade is actively progressing.
+	PRUpgradeInProgressDetailsSubstring = "Upgrading to"
+	// ManagedClusterOpenShiftVersionLabel is the ManagedCluster label key that reports spoke OCP version.
+	ManagedClusterOpenShiftVersionLabel = "openshiftVersion"
 )
 
 const (
@@ -90,6 +104,15 @@ const (
 	TemplateNonexistentHWProfile = "v19"
 	// TemplateHardwareAllocated is the ClusterTemplate version for allocated hardware test.
 	TemplateHardwareAllocated = "v20"
+	// TemplateMNOZStreamUpgradeDefault is the default ClusterTemplate version for MNO z-stream upgrade test.
+	TemplateMNOZStreamUpgradeDefault = "v21"
+)
+
+const (
+	// EnvMNOUpgradeTemplateVersion overrides the z-stream upgrade template version used by the post-provision test.
+	EnvMNOUpgradeTemplateVersion = "ECO_CNF_RAN_ORAN_MNO_UPGRADE_TEMPLATE_VERSION"
+	// EnvMNOUpgradeTargetVersion optionally overrides expected target version verification.
+	EnvMNOUpgradeTargetVersion = "ECO_CNF_RAN_ORAN_MNO_UPGRADE_TARGET_VERSION"
 )
 
 const (

@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -15,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/auth"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -251,6 +253,73 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 
 		// The AfterEach block will restore the ProvisioningRequest to its original state, so there is no need to
 		// restore it here. If it fails to be restored, the test will fail there.
+	})
+
+	It("successfully performs MNO z-stream upgrade happy path", func() {
+		templateVersion := os.Getenv(tsparams.EnvMNOUpgradeTemplateVersion)
+		if templateVersion == "" {
+			templateVersion = tsparams.TemplateMNOZStreamUpgradeDefault
+		}
+
+		By("updating the ProvisioningRequest to the MNO z-stream upgrade template")
+
+		updateTime := getStartTime()
+		prBuilder.Definition.Spec.TemplateVersion = RANConfig.ClusterTemplateAffix + "-" + templateVersion
+		prBuilder, err := prBuilder.Update()
+		Expect(err).ToNot(HaveOccurred(), "Failed to update ProvisioningRequest for MNO z-stream upgrade")
+
+		By("resolving the expected target version from upgrade template parameters")
+
+		templateParameters, err := prBuilder.GetTemplateParameters()
+		Expect(err).ToNot(HaveOccurred(), "Failed to get TemplateParameters after update")
+
+		targetVersion, err := helper.GetUpgradeDesiredVersion(templateParameters)
+		Expect(err).ToNot(HaveOccurred(), "Failed to resolve upgrade desired version from TemplateParameters")
+
+		if envTargetVersion := os.Getenv(tsparams.EnvMNOUpgradeTargetVersion); envTargetVersion != "" {
+			targetVersion = envTargetVersion
+		}
+
+		By("waiting for ProvisioningRequest to enter progressing phase")
+
+		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateProgressing, updateTime, 15*time.Minute)
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to start z-stream upgrade")
+
+		By("waiting for UpgradeCompleted condition to report completed")
+
+		prBuilder, err = helper.WaitForPRConditionAfter(
+			o2imsAPIClient,
+			tsparams.TestPRName,
+			string(provisioningv1alpha1.PRconditionTypes.UpgradeCompleted),
+			string(provisioningv1alpha1.CRconditionReasons.Completed),
+			metav1.ConditionTrue,
+			updateTime,
+			4*time.Hour)
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for UpgradeCompleted condition to be completed")
+
+		By("waiting for ProvisioningRequest to return to fulfilled")
+
+		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, updateTime, 4*time.Hour)
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to return to fulfilled")
+
+		By("verifying provisioning details reflect upgrade completion")
+
+		Expect(prBuilder.Object.Status.ProvisioningStatus.ProvisioningDetails).
+			To(ContainSubstring(tsparams.PRUpgradeCompletedDetailsSubstring),
+				"Expected provisioning details to include upgrade completion message")
+		Expect(prBuilder.Object.Status.ProvisioningStatus.ProvisioningDetails).
+			To(ContainSubstring(targetVersion),
+				"Expected provisioning details to include target version")
+
+		By("verifying spoke ManagedCluster reports the expected OpenShift version")
+
+		managedCluster, err := ocm.PullManagedCluster(HubAPIClient, RANConfig.Spoke1Name)
+		Expect(err).ToNot(HaveOccurred(), "Failed to pull spoke ManagedCluster")
+
+		Expect(managedCluster.Definition.Labels).
+			To(HaveKeyWithValue(tsparams.ManagedClusterOpenShiftVersionLabel, targetVersion),
+				"Expected spoke ManagedCluster %s label %s to match target version %s",
+				RANConfig.Spoke1Name, tsparams.ManagedClusterOpenShiftVersionLabel, targetVersion)
 	})
 })
 

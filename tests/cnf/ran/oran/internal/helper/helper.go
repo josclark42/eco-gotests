@@ -13,6 +13,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	mocksmo "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-mock-smo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -185,4 +186,77 @@ func WaitForAllNotifications(
 
 			return len(expectedTrackers) == 0, nil
 		})
+}
+
+// WaitForPRConditionAfter waits until a ProvisioningRequest condition matches type/reason/status and is observed after
+// minTransitionTime. The returned builder is guaranteed non-nil when err is nil.
+func WaitForPRConditionAfter(
+	client runtimeclient.Client,
+	name string,
+	conditionType string,
+	reason string,
+	status metav1.ConditionStatus,
+	minTransitionTime time.Time,
+	timeout time.Duration) (*oran.ProvisioningRequestBuilder, error) {
+	var latestPR *oran.ProvisioningRequestBuilder
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			prBuilder, err := oran.PullPR(client, name)
+			if err != nil {
+				klog.V(tsparams.LogLevel).Infof("Failed to pull ProvisioningRequest %s: %v", name, err)
+
+				return false, nil
+			}
+
+			latestPR = prBuilder
+
+			for _, condition := range prBuilder.Object.Status.Conditions {
+				if condition.Type == conditionType &&
+					condition.Reason == reason &&
+					condition.Status == status &&
+					!condition.LastTransitionTime.Time.Before(minTransitionTime) {
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("failed waiting for condition %s/%s=%s on ProvisioningRequest %s: %w",
+			conditionType, reason, status, name, err)
+	}
+
+	return latestPR, nil
+}
+
+// GetUpgradeDesiredVersion extracts upgradeParameters.clusterVersion.desiredUpdate.version from TemplateParameters.
+func GetUpgradeDesiredVersion(templateParameters map[string]any) (string, error) {
+	upgradeParameters, ok := templateParameters[tsparams.UpgradeTemplateParamsKey].(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("%s is missing or invalid in TemplateParameters", tsparams.UpgradeTemplateParamsKey)
+	}
+
+	clusterVersion, ok := upgradeParameters[tsparams.UpgradeClusterVersionKey].(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("%s.%s is missing or invalid",
+			tsparams.UpgradeTemplateParamsKey, tsparams.UpgradeClusterVersionKey)
+	}
+
+	desiredUpdate, ok := clusterVersion[tsparams.UpgradeDesiredUpdateKey].(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("%s.%s.%s is missing or invalid",
+			tsparams.UpgradeTemplateParamsKey, tsparams.UpgradeClusterVersionKey, tsparams.UpgradeDesiredUpdateKey)
+	}
+
+	desiredVersion, ok := desiredUpdate[tsparams.UpgradeDesiredVersionKey].(string)
+	if !ok || desiredVersion == "" {
+		return "", fmt.Errorf("%s.%s.%s.%s is missing or empty",
+			tsparams.UpgradeTemplateParamsKey,
+			tsparams.UpgradeClusterVersionKey,
+			tsparams.UpgradeDesiredUpdateKey,
+			tsparams.UpgradeDesiredVersionKey)
+	}
+
+	return desiredVersion, nil
 }
